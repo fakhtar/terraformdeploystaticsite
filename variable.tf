@@ -1,3 +1,4 @@
+# All variable specifications go in this file. You must declare a var before using it.
 # https://www.terraform.io/docs/language/values/variables.html
 
 variable "domain" {
@@ -6,10 +7,7 @@ variable "domain" {
 variable "aws_region" {
   type = string
 }
-variable "regex_replace_chars" {
-  type    = string
-  default = "/[^a-zA-Z0-9-]/"
-}
+
 variable "developer_name" {
   type = string
 }
