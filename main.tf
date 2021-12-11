@@ -1,12 +1,11 @@
 # https://www.terraform.io/docs/language/providers/requirements.html
-# Configure AWS as a required provider. This will let terraform know which provider to install and which version.
+# Set AWS as a required provider. This will let terraform know which provider to install and which version.
 
 terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 3.0"
-      #version = "3.62.0"
     }
   }
 }
@@ -14,7 +13,7 @@ terraform {
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs 
 # Configure the AWS provider. This is provider specific configurations. For example, AWS requires a region value.
 provider "aws" {
-  # We are using the aws_region value passed as a variable. The variable definition can be found in variables.tf
+  # We are using the aws_region value passed as a variable. The variable definition can be found in variable.tf
   # The specific value to which this variable will be set is found in the dev.tfvars file.
   # You can use a different var file such as prod.tfvar for different environments.
   region = var.aws_region
@@ -38,7 +37,7 @@ data "aws_iam_policy_document" "policy_for_giving_cloudfront_access_to_s3" {
     actions = ["s3:GetObject"]
     # Since this policy references this S3 bucket resources, it will be created before this policy.
     # After creation, the arn of the bucket will be entered here.
-    # Terraform resolves these dependencies such as which resources need to be created first.
+    # Terraform resolves these dependencies such as which resources need to be created first using a dependency graph.
     resources = ["${aws_s3_bucket.bucket_for_static_content.arn}/*"]
 
     principals {
@@ -49,8 +48,8 @@ data "aws_iam_policy_document" "policy_for_giving_cloudfront_access_to_s3" {
   }
 }
 
+# https://www.terraform.io/docs/configuration-0-11/interpolation.html
 resource "aws_s3_bucket" "bucket_for_static_content" {
-  # https://www.terraform.io/docs/configuration-0-11/interpolation.html
   # I am using string interpolation along with functions to create a unique s3 bucket name.
   bucket        = "static-content-${split(".", var.domain)[0]}-${var.aws_region}-${var.environment}"
   force_destroy = true # be careful with this options as it will delete the items in the bucket before destorying the bucket
@@ -71,10 +70,27 @@ resource "aws_s3_bucket" "bucket_for_static_content" {
 #   etag = filemd5("./static_content/${each.value}")
 # }
 
-resource "null_resource" "remove_and_upload_to_s3" {
-  provisioner "local-exec" {
-    command = "aws s3 sync ./static_content/ s3://${aws_s3_bucket.bucket_for_static_content.id}"
-  }
+# This will upload all static content to the S3 bucket. Local exec should be used sparingly. Use pipelines instead to upload static content to s3.
+# resource "null_resource" "remove_and_upload_to_s3" {
+#   provisioner "local-exec" {
+#     command = "aws s3 sync ./static_content/ s3://${aws_s3_bucket.bucket_for_static_content.id}"
+#   }
+# }
+
+# resource "aws_s3_bucket_object" "index" {
+#   bucket = aws_s3_bucket.bucket_for_static_content.id
+#   key = "index.html"
+#   content = 
+
+#   content_type = "text/html"
+# }
+
+resource "aws_s3_bucket_object" "index" {
+  bucket       = aws_s3_bucket.bucket_for_static_content.id
+  key          = "index.html"
+  source       = "static_content/index.html"
+  etag         = filemd5("static_content/index.html")
+  content_type = "text/html"
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_identity
@@ -83,7 +99,7 @@ resource "aws_cloudfront_origin_access_identity" "origin_access_identity_for_acc
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy
-# This bucket policy will be applied to the S3 bucket so that cloudfront will be able to access the S3 bucket.
+# This bucket policy will be applied to the S3 bucket so that cloudfront will be able to access the S3 bucket. Here are are applying the policy we wrote above.
 resource "aws_s3_bucket_policy" "bucket_policy_for_allowing_access_to_cloudfront" {
   bucket = aws_s3_bucket.bucket_for_static_content.id
   policy = data.aws_iam_policy_document.policy_for_giving_cloudfront_access_to_s3.json
@@ -102,7 +118,7 @@ resource "aws_cloudfront_distribution" "cloudfront_distribution_fronting_s3_cont
     }
   }
   enabled             = true
-  default_root_object = "index.html"
+  default_root_object = "index.html" #This will be first page served up. when someone hits this distribution.
 
   # Notice that instead of manually creating all the infrastrucutre, we can specify in code what we need so we forget nothing.
   aliases = [var.domain, "www.${var.domain}"]
@@ -227,15 +243,14 @@ resource "aws_route53_record" "a_record_alias" {
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone
 # You must purchase the domain before you can create the zone in route 53
-# Notice the prevent destory. The reason is that if you destory the zone, recreation requires time for entries to propogate throguh the world wide DNS.
-# You will have to import the route 53 zone using 
+# You will have to import the route 53 zone using the command below. Replce the zone id at the end with your own.
 # terraform import -var-file="dev.tfvars" aws_route53_zone.your_domain Z1042347Z048PGTJD0W2
 # You can remove the resource from being tracked by terraform using 
 # terraform state rm 'aws_route53_zone.your_domain'
 resource "aws_route53_zone" "your_domain" {
   name = var.domain
   tags = local.tags
-  # lifecycle {
-  #   prevent_destroy = true
-  # }
+  lifecycle {
+    prevent_destroy = true # Notice the prevent destory. The reason is that if you destory the zone, recreation requires time for entries to propogate throguh the world wide DNS.
+  }
 }
