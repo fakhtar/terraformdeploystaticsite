@@ -27,6 +27,21 @@ locals {
     Owner       = var.developer_name
     Environment = var.environment
   }
+  static_files = {
+    "index"              = { filename = "index.html", source = "static_content/index.html", content_type = "text/html", },
+    "simpleChat"         = { filename = "js/simpleChat.js", source = "static_content/js/simpleChat.js", content_type = "text/javascript", },
+    "jquery"             = { filename = "js/jquery.min.js", source = "static_content/js/jquery.min.js", content_type = "text/javascript", },
+    "bootstrapmin"       = { filename = "js/bootstrap.min.js", source = "static_content/js/bootstrap.min.js", content_type = "text/javascript", },
+    "bootstrapbundle"    = { filename = "js/bootstrap.bundle.min.js", source = "static_content/js/bootstrap.bundle.min.js", content_type = "text/javascript", },
+    "bootstrapbundlemap" = { filename = "js/bootstrap.bundle.min.js.map", source = "static_content/js/bootstrap.bundle.min.js.map", content_type = "application/json", },
+    "female"             = { filename = "img/person-female.png", source = "static_content/img/person-female.png", content_type = "image/png", },
+    "male"               = { filename = "img/administrator-male.png", source = "static_content/img/administrator-male.png", content_type = "image/png", },
+    "fontawsome"         = { filename = "fonts/fontawesome-webfont.woff", source = "static_content/fonts/fontawesome-webfont.woff", content_type = "font/woff", },
+    "simplechatcss"      = { filename = "css/simpleChat.css", source = "static_content/css/simpleChat.css", content_type = "text/css", },
+    "fontawsomecss"      = { filename = "css/font-awesome.css", source = "static_content/css/font-awesome.css", content_type = "text/css", },
+    "bootstrapmincss"    = { filename = "css/bootstrap.min.css", source = "static_content/css/bootstrap.min.css", content_type = "text/css", },
+    "bootstrapmincssmap" = { filename = "css/bootstrap.min.css.map", source = "static_content/css/bootstrap.min.css.map", content_type = "application/json", }
+  }
 }
 
 
@@ -85,13 +100,23 @@ resource "aws_s3_bucket" "bucket_for_static_content" {
 #   content_type = "text/html"
 # }
 
-resource "aws_s3_bucket_object" "index" {
+resource "aws_s3_bucket_object" "static_content" {
+  for_each     = local.static_files
   bucket       = aws_s3_bucket.bucket_for_static_content.id
-  key          = "index.html"
-  source       = "static_content/index.html"
-  etag         = filemd5("static_content/index.html")
-  content_type = "text/html"
+  key          = each.value.filename
+  source       = each.value.source
+  etag         = filemd5("${each.value.source}")
+  content_type = each.value.content_type
 }
+
+# resource "aws_s3_bucket_object" "index" {
+#   bucket       = aws_s3_bucket.bucket_for_static_content.id
+#   key          = "index.html"
+#   source       = "static_content/index.html"
+#   etag         = filemd5("static_content/index.html")
+#   content_type = "text/html"
+# }
+
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_origin_access_identity
 # This is the origin access identity of the cloudfront distribution
