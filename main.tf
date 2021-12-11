@@ -52,9 +52,9 @@ data "aws_iam_policy_document" "policy_for_giving_cloudfront_access_to_s3" {
 resource "aws_s3_bucket" "bucket_for_static_content" {
   # https://www.terraform.io/docs/configuration-0-11/interpolation.html
   # I am using string interpolation along with functions to create a unique s3 bucket name.
-  bucket = "static-content-${split(".", var.domain)[0]}-${var.aws_region}-${var.environment}"
+  bucket        = "static-content-${split(".", var.domain)[0]}-${var.aws_region}-${var.environment}"
   force_destroy = true # be careful with this options as it will delete the items in the bucket before destorying the bucket
-  acl    = "private"
+  acl           = "private"
   # referencing local tags declared above
   tags = local.tags
 }
