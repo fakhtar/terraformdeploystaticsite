@@ -34,7 +34,7 @@ resource "aws_s3_bucket" "bucket_for_static_content" {
 resource "aws_s3_bucket_object" "static_content" {
   for_each     = local.static_files
   bucket       = aws_s3_bucket.bucket_for_static_content.id #reference the s3 bucket where these files will be hosted
-  key          = each.value.filename # for each file, fill out the properties
+  key          = each.value.filename                        # for each file, fill out the properties
   source       = each.value.source
   etag         = filemd5("${each.value.source}") # this ensures that file will be replaced on s3 if it is changed locally
   content_type = each.value.content_type
