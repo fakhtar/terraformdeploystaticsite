@@ -54,7 +54,7 @@ resource "aws_route53_record" "www" {
 # ALias record for poisting the apex zone to the CloudFront distribution
 resource "aws_route53_record" "a_record_alias" {
   zone_id = aws_route53_zone.your_domain.zone_id
-  name    = "codeislife.de"
+  name    = var.domain
   type    = "A"
 
   alias {
